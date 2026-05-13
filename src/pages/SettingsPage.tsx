@@ -23,6 +23,26 @@ interface SettingsPageProps {
   onSaved: () => void
 }
 
+// Convert raw API errors to user-friendly messages
+function getFriendlyErrorMessage(error: unknown, vendor: LlmVendor): string {
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase()
+    if (msg.includes('401') || msg.includes('unauthorized') || msg.includes('invalid api key')) {
+      return `Invalid ${vendor === 'openai' ? 'OpenAI' : 'Anthropic'} API key`
+    }
+    if (msg.includes('403') || msg.includes('forbidden')) {
+      return `API key lacks required permissions`
+    }
+    if (msg.includes('429') || msg.includes('rate limit')) {
+      return `Rate limit exceeded - try again in a moment`
+    }
+    if (msg.includes('network') || msg.includes('fetch')) {
+      return `Network error - check your connection`
+    }
+  }
+  return `Unable to fetch current models`
+}
+
 export function SettingsPage({ settings, onSaved }: SettingsPageProps) {
   const [vendor, setVendor] = useState<LlmVendor>(settings.vendor)
   const [model, setModel] = useState(settings.model)
@@ -37,9 +57,23 @@ export function SettingsPage({ settings, onSaved }: SettingsPageProps) {
   const [modelsError, setModelsError] = useState<string | null>(null)
   const [shouldUseFetched, setShouldUseFetched] = useState(false)
 
+  // Simple heuristic to check if API key looks complete
+  const isKeyLikelyValid = useCallback((key: string) => {
+    if (!key || key.trim().length < 20) return false
+    const trimmed = key.trim()
+    
+    if (vendor === 'openai') {
+      // OpenAI keys start with 'sk-' and are ~51 chars
+      return trimmed.startsWith('sk-') && trimmed.length >= 40
+    } else {
+      // Anthropic keys start with 'sk-ant-' and are longer
+      return trimmed.startsWith('sk-ant-') && trimmed.length >= 50
+    }
+  }, [vendor])
+
   const fetchModelsForCurrentSetup = useCallback(async () => {
     const key = apiKeyDraft.trim() || loadApiKey()
-    if (!key) return
+    if (!key || !isKeyLikelyValid(key)) return
 
     setModelsFetching(true)
     setModelsError(null)
@@ -52,15 +86,16 @@ export function SettingsPage({ settings, onSaved }: SettingsPageProps) {
       setShouldUseFetched(true)
       setModelsError(null)
     } catch (error) {
-      setModelsError(error instanceof Error ? error.message : 'Failed to fetch models')
+      const friendlyMessage = getFriendlyErrorMessage(error, vendor)
+      setModelsError(friendlyMessage)
       setFetchedModels([])
       setShouldUseFetched(false)
     } finally {
       setModelsFetching(false)
     }
-  }, [apiKeyDraft, vendor])
+  }, [apiKeyDraft, vendor, isKeyLikelyValid])
 
-  // Auto-fetch models when API key changes (debounced)
+  // Auto-fetch models when API key changes (debounced with validation)
   useEffect(() => {
     const key = apiKeyDraft.trim() || loadApiKey()
     if (!key) {
@@ -73,12 +108,22 @@ export function SettingsPage({ settings, onSaved }: SettingsPageProps) {
       return () => clearTimeout(clearTimer)
     }
 
+    // Only fetch if key looks valid to avoid spamming with incomplete keys
+    if (!isKeyLikelyValid(key)) {
+      const clearTimer = setTimeout(() => {
+        setShouldUseFetched(false)
+        setFetchedModels([])
+        setModelsError(null)
+      }, 0)
+      return () => clearTimeout(clearTimer)
+    }
+
     const timer = setTimeout(() => {
       fetchModelsForCurrentSetup()
-    }, 1000) // Debounce API calls
+    }, 2500) // Longer debounce to avoid mid-typing API calls
 
     return () => clearTimeout(timer)
-  }, [apiKeyDraft, fetchModelsForCurrentSetup])
+  }, [apiKeyDraft, fetchModelsForCurrentSetup, isKeyLikelyValid])
 
   async function handleSave(runProbe: boolean) {
     setMsg(null)
@@ -235,12 +280,12 @@ export function SettingsPage({ settings, onSaved }: SettingsPageProps) {
             </div>
             
             {modelsError ? (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-                <p className="text-sm text-amber-950">
-                  Failed to fetch models: {modelsError}
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                <p className="text-sm text-blue-950">
+                  {modelsError}
                 </p>
-                <p className="mt-1 text-xs text-amber-800">
-                  Using fallback model list. You can still enter custom model names.
+                <p className="mt-1 text-xs text-blue-800">
+                  Using fallback models. You can still enter custom model names or fix the key to load current models.
                 </p>
               </div>
             ) : null}
@@ -283,11 +328,11 @@ export function SettingsPage({ settings, onSaved }: SettingsPageProps) {
           </div>
         ) : (
           <div className="space-y-2">
-            <label className="block text-sm font-semibold text-stone-800 text-stone-500">
+            <label className="block text-sm font-semibold text-stone-500">
               Model selection
             </label>
             <div className="rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-500">
-              Enter your API key first to see available models
+              Enter a valid API key below to load current models from {vendor === 'openai' ? 'OpenAI' : 'Anthropic'}
             </div>
           </div>
         )}
