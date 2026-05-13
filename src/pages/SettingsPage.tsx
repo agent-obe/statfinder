@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import type { LlmVendor } from '../types/stat'
 import {
   DEFAULT_ANTHROPIC_MODEL,
@@ -15,6 +15,8 @@ import {
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { createLlmProvider } from '../lib/llm/factory'
+import { fetchOpenAIModels, type ModelOption } from '../lib/llm/openaiProvider'
+import { fetchAnthropicModels } from '../lib/llm/anthropicProvider'
 
 interface SettingsPageProps {
   settings: PersistedSettings
@@ -30,6 +32,53 @@ export function SettingsPage({ settings, onSaved }: SettingsPageProps) {
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
   const [showCustomModel, setShowCustomModel] = useState(false)
+  const [fetchedModels, setFetchedModels] = useState<ModelOption[]>([])
+  const [modelsFetching, setModelsFetching] = useState(false)
+  const [modelsError, setModelsError] = useState<string | null>(null)
+  const [shouldUseFetched, setShouldUseFetched] = useState(false)
+
+  const fetchModelsForCurrentSetup = useCallback(async () => {
+    const key = apiKeyDraft.trim() || loadApiKey()
+    if (!key) return
+
+    setModelsFetching(true)
+    setModelsError(null)
+    try {
+      const models = vendor === 'openai' 
+        ? await fetchOpenAIModels(key)
+        : await fetchAnthropicModels(key)
+      
+      setFetchedModels(models)
+      setShouldUseFetched(true)
+      setModelsError(null)
+    } catch (error) {
+      setModelsError(error instanceof Error ? error.message : 'Failed to fetch models')
+      setFetchedModels([])
+      setShouldUseFetched(false)
+    } finally {
+      setModelsFetching(false)
+    }
+  }, [apiKeyDraft, vendor])
+
+  // Auto-fetch models when API key changes (debounced)
+  useEffect(() => {
+    const key = apiKeyDraft.trim() || loadApiKey()
+    if (!key) {
+      // Use setTimeout to avoid synchronous state updates in effect
+      const clearTimer = setTimeout(() => {
+        setShouldUseFetched(false)
+        setFetchedModels([])
+        setModelsError(null)
+      }, 0)
+      return () => clearTimeout(clearTimer)
+    }
+
+    const timer = setTimeout(() => {
+      fetchModelsForCurrentSetup()
+    }, 1000) // Debounce API calls
+
+    return () => clearTimeout(timer)
+  }, [apiKeyDraft, fetchModelsForCurrentSetup])
 
   async function handleSave(runProbe: boolean) {
     setMsg(null)
@@ -85,14 +134,15 @@ export function SettingsPage({ settings, onSaved }: SettingsPageProps) {
   const hint = readMaskedKeyHint()
   const hasApiKey = hint.hasKey || apiKeyDraft.trim().length > 0
   
-  // Get model options based on selected vendor
-  const modelOptions = vendor === 'anthropic' ? ANTHROPIC_MODEL_OPTIONS : OPENAI_MODEL_OPTIONS
+  // Get model options - prioritize fetched models if available and valid
+  const fallbackOptions = vendor === 'anthropic' ? ANTHROPIC_MODEL_OPTIONS : OPENAI_MODEL_OPTIONS
+  const modelOptions = shouldUseFetched && fetchedModels.length > 0 ? fetchedModels : fallbackOptions
   
-  // Check if current model is in the curated list
-  const isModelInCuratedList = modelOptions.some(option => option.value === model)
+  // Check if current model is in the available list
+  const isModelInList = modelOptions.some(option => option.value === model)
   
   // Show custom input if model isn't in list or user explicitly chose custom
-  const shouldShowCustomInput = !isModelInCuratedList || showCustomModel
+  const shouldShowCustomInput = !isModelInList || showCustomModel
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-6 sm:px-6 sm:py-10">
@@ -143,6 +193,9 @@ export function SettingsPage({ settings, onSaved }: SettingsPageProps) {
                       : m,
                   )
                   setShowCustomModel(false)
+                  setShouldUseFetched(false)
+                  setFetchedModels([])
+                  setModelsError(null)
                 }}
               />
               OpenAI
@@ -160,6 +213,9 @@ export function SettingsPage({ settings, onSaved }: SettingsPageProps) {
                       : m,
                   )
                   setShowCustomModel(false)
+                  setShouldUseFetched(false)
+                  setFetchedModels([])
+                  setModelsError(null)
                 }}
               />
               Anthropic
@@ -169,30 +225,48 @@ export function SettingsPage({ settings, onSaved }: SettingsPageProps) {
 
         {hasApiKey ? (
           <div className="space-y-2">
-            <label className="block text-sm font-semibold text-stone-800">
-              Model selection
-              <select
-                className="mt-2 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 focus:border-emerald-900/40 focus:outline-none focus:ring-2 focus:ring-emerald-900/20"
-                value={shouldShowCustomInput ? 'custom' : model}
-                onChange={(e) => {
-                  if (e.target.value === 'custom') {
-                    setShowCustomModel(true)
-                    return
-                  }
-                  setShowCustomModel(false)
-                  setModel(e.target.value)
-                }}
-              >
-                {modelOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-                <option value="custom">
-                  {!isModelInCuratedList ? `Custom: ${model}` : 'Custom model...'}
+            <div className="flex items-center justify-between">
+              <label className="block text-sm font-semibold text-stone-800">
+                Model selection
+              </label>
+              {modelsFetching && (
+                <span className="text-xs text-stone-500">Fetching models...</span>
+              )}
+            </div>
+            
+            {modelsError ? (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                <p className="text-sm text-amber-950">
+                  Failed to fetch models: {modelsError}
+                </p>
+                <p className="mt-1 text-xs text-amber-800">
+                  Using fallback model list. You can still enter custom model names.
+                </p>
+              </div>
+            ) : null}
+            
+            <select
+              className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 focus:border-emerald-900/40 focus:outline-none focus:ring-2 focus:ring-emerald-900/20 disabled:bg-stone-50 disabled:text-stone-500"
+              value={shouldShowCustomInput ? 'custom' : model}
+              disabled={modelsFetching}
+              onChange={(e) => {
+                if (e.target.value === 'custom') {
+                  setShowCustomModel(true)
+                  return
+                }
+                setShowCustomModel(false)
+                setModel(e.target.value)
+              }}
+            >
+              {modelOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
                 </option>
-              </select>
-            </label>
+              ))}
+              <option value="custom">
+                {!isModelInList ? `Custom: ${model}` : 'Custom model...'}
+              </option>
+            </select>
             
             {shouldShowCustomInput && (
               <label className="block text-sm font-semibold text-stone-800">
@@ -219,7 +293,9 @@ export function SettingsPage({ settings, onSaved }: SettingsPageProps) {
         )}
         
         <p className="text-xs text-stone-500">
-          Curated models are optimized for StatFinder. Custom models supported but may need fine-tuning.
+          {shouldUseFetched && !modelsError
+            ? "Models fetched from your API key. Custom models also supported."
+            : "Curated models are optimized for StatFinder. Custom models supported but may need fine-tuning."}
         </p>
 
         <fieldset className="space-y-2">

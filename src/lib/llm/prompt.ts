@@ -18,10 +18,12 @@ export function buildUserPayload(input: StatQueryInput): string {
       shape: {
         parsedFilters: 'Record<string,string> — echo only filters you relied on.',
         answer: 'Short direct answer grounded in plausible public stats context.',
+        heroAnswer:
+          'The primary answer to highlight prominently — can be numeric (e.g., "37%", "$54,200") OR textual (e.g., "Rice", "Mexican Americans", "Diabetes"). Extract the most important part of the answer.',
         headlineStat:
-          'The core number to highlight visually (e.g., "37%", "$54,200", "3.2 million") — extract from answer.',
+          'DEPRECATED: Use heroAnswer instead. The core number to highlight visually (e.g., "37%", "$54,200", "3.2 million") — extract from answer.',
         headlineLabel:
-          'Brief label for the statistic (e.g., "unemployment rate", "median household income") — omit if obvious from context.',
+          'Brief label for the statistic (e.g., "unemployment rate", "most consumed food", "largest community") — omit if obvious from context.',
         headlineQualifier:
           'Important context/qualifier (e.g., "as of 2023", "among college graduates", "nationwide") — omit if unnecessary.',
         confidence: 'high | medium | low — must be conservative if unsure.',
@@ -50,6 +52,8 @@ export function buildUserPayload(input: StatQueryInput): string {
         'Never claim private database/live browsing access.',
         'If geography/demographics not disaggregatable, say so in unsupportedFilters.',
         'Prefer official sources in source label; omit sourceUrl unless very confident URL is canonical.',
+        'Use heroAnswer for the primary answer — can be numeric (percentages, dollar amounts, counts) OR textual (names, categories, entities).',
+        'For textual questions like "what is the most X", put the answer word/phrase in heroAnswer (e.g., "Rice", "Mexican Americans").',
       ],
     },
   })
@@ -60,6 +64,7 @@ export function rawToStatResult(raw: RawStatResult): StatResult {
   return {
     parsedFilters: raw.parsedFilters ?? {},
     answer: raw.answer,
+    heroAnswer: raw.heroAnswer?.trim() || undefined,
     headlineStat: raw.headlineStat?.trim() || undefined,
     headlineLabel: raw.headlineLabel?.trim() || undefined,
     headlineQualifier: raw.headlineQualifier?.trim() || undefined,

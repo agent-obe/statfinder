@@ -10,6 +10,7 @@ export const RawSourceHierarchySchema = z.object({
 export const RawStatResultSchema = z.object({
   parsedFilters: z.record(z.string()).optional(),
   answer: z.string(),
+  heroAnswer: z.string().optional(),
   headlineStat: z.string().optional(),
   headlineLabel: z.string().optional(),
   headlineQualifier: z.string().optional(),

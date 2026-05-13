@@ -5,13 +5,13 @@ interface HeadlineStatDisplayProps {
 }
 
 export function HeadlineStatDisplay({ result }: HeadlineStatDisplayProps) {
-  const { headlineStat, headlineLabel, headlineQualifier } = result
+  const { heroAnswer, headlineStat, headlineLabel, headlineQualifier } = result
 
-  // If no headline stat is provided, try to extract number from the answer
-  const displayStat = headlineStat || extractStatFromAnswer(result.answer)
+  // Prioritize heroAnswer (new field), then headlineStat (deprecated), then extract from answer
+  const displayAnswer = heroAnswer || headlineStat || extractStatFromAnswer(result.answer)
   
-  if (!displayStat) {
-    // Fallback to regular answer display if we can't extract a number
+  if (!displayAnswer) {
+    // Fallback to regular answer display if we can't extract anything meaningful
     return (
       <div className="text-center">
         <p className="text-lg text-stone-900 leading-relaxed">{result.answer}</p>
@@ -19,11 +19,19 @@ export function HeadlineStatDisplay({ result }: HeadlineStatDisplayProps) {
     )
   }
 
+  // Determine if this looks like a number vs text for styling
+  const isNumeric = /^[\d$,%.\s\-+]+[%$]?$/i.test(displayAnswer.trim())
+  const textSizeClass = isNumeric 
+    ? "text-6xl sm:text-7xl lg:text-8xl" 
+    : displayAnswer.length > 20 
+      ? "text-3xl sm:text-4xl lg:text-5xl" 
+      : "text-4xl sm:text-5xl lg:text-6xl"
+
   return (
     <div className="text-center space-y-3">
-      {/* Main statistic - the hero */}
-      <div className="text-6xl sm:text-7xl lg:text-8xl font-bold text-emerald-900 tracking-tight">
-        {displayStat}
+      {/* Main answer - the hero (numeric or textual) */}
+      <div className={`${textSizeClass} font-bold text-emerald-900 tracking-tight leading-tight`}>
+        {displayAnswer}
       </div>
       
       {/* Label for the statistic */}
@@ -40,8 +48,8 @@ export function HeadlineStatDisplay({ result }: HeadlineStatDisplayProps) {
         </div>
       )}
       
-      {/* Full answer as supporting context if different from components above */}
-      {(headlineStat || headlineLabel) && (
+      {/* Full answer as supporting context if different from hero answer */}
+      {(heroAnswer || headlineStat || headlineLabel) && (
         <div className="mt-6 pt-4 border-t border-stone-200">
           <p className="text-sm sm:text-base text-stone-700 leading-relaxed max-w-3xl mx-auto">
             {result.answer}
@@ -53,7 +61,7 @@ export function HeadlineStatDisplay({ result }: HeadlineStatDisplayProps) {
 }
 
 /**
- * Simple regex to extract numbers/percentages from text as fallback
+ * Extract meaningful answers from text - both numeric and textual
  */
 function extractStatFromAnswer(answer: string): string | null {
   // Look for percentages first
@@ -71,6 +79,17 @@ function extractStatFromAnswer(answer: string): string | null {
   // Look for standalone numbers
   const simpleNumberMatch = answer.match(/(\d+(?:,\d{3})*(?:\.\d+)?)/);
   if (simpleNumberMatch) return simpleNumberMatch[1];
+  
+  // For textual answers, try to extract key phrases
+  // Look for quoted text first
+  const quotedMatch = answer.match(/"([^"]+)"/);
+  if (quotedMatch) return quotedMatch[1];
+  
+  // Look for capitalized words that might be proper nouns/names
+  const capitalizedMatch = answer.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/);
+  if (capitalizedMatch && capitalizedMatch[1].length < 30) {
+    return capitalizedMatch[1];
+  }
   
   return null;
 }

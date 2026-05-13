@@ -31,9 +31,11 @@ export interface SourceHierarchyEntry {
 export interface StatResult {
   parsedFilters: Record<string, string>
   answer: string
-  /** The key number/percentage to emphasize visually */
+  /** The primary answer to display prominently - can be numeric or textual */
+  heroAnswer?: string
+  /** DEPRECATED: Use heroAnswer instead. The key number/percentage to emphasize visually */
   headlineStat?: string
-  /** Label for the headline stat (e.g., "unemployment rate", "median income") */
+  /** Label for the headline stat (e.g., "unemployment rate", "median income", "most consumed food") */
   headlineLabel?: string
   /** Qualifier for the headline stat (e.g., "as of 2023", "among adults") */
   headlineQualifier?: string

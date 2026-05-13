@@ -9,9 +9,10 @@ Live demo (once GitHub Pages is enabled on your fork):
 
 ## Features (v1)
 
-- Settings gate for provider choice, editable model slug, API key masking, persistence choice (`localStorage` vs `sessionStorage`).
+- Settings gate for provider choice, dynamic model fetching from API keys, API key masking, persistence choice (`localStorage` vs `sessionStorage`).
 - Structured query UX with collapsible geography/demographic filters (forwarded verbatim to the model).
 - Robust response handling: Markdown fence stripping, JSON extraction fallback, validation with **Zod**, local source URL sanity checks (“Source not verified in v1” + forced low confidence when unverifiable).
+- Support for both numeric and textual headline answers (e.g., "37%" or "Rice" or "Mexican Americans").
 - Saved query summaries (browser-only; no authentication).
 - Mobile-first stacking, obvious copy buttons, subdued “data product” visuals (warm neutrals + deep green anchors).
 
@@ -58,7 +59,7 @@ No environment variables are required—the app is wholly static aside from outb
 
 1. Open **Settings** on first launch and choose **OpenAI** or **Anthropic**.
 2. Paste a revocable/project-scoped browser key (`localStorage` remembers between sessions unless you prefer `sessionStorage`).
-3. Tune the **model slug** if defaults drift (defaults today: OpenAI `gpt-4.1-mini`, Anthropic `claude-3-5-sonnet-latest`).
+3. Available models are automatically fetched from your API provider. Select from the list or enter a custom model name.
 4. Optionally run **Save + test provider** to confirm credentials.
 
 Keys never render in plaintext after masked storage—they are not logged by StatFinder UI code—but they still traverse your network interface to vendors.
