@@ -3,6 +3,7 @@ import { Card } from '../components/Card'
 import { CopyButton } from '../components/CopyButton'
 import { SourceTransparencyPanel } from '../components/SourceTransparencyPanel'
 import { Button } from '../components/Button'
+import { HeadlineStatDisplay } from '../components/HeadlineStatDisplay'
 
 function confidenceTone(c: Confidence): string {
   if (c === 'high') return 'bg-emerald-50 text-emerald-950 ring-emerald-200'
@@ -29,11 +30,10 @@ export function ResultsPage({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-stone-900">
-            Latest result
+            Your statistic
           </h1>
           <p className="mt-2 max-w-prose text-sm text-stone-600">
-            Transparency-first rendering of the validated JSON envelope, with source
-            URL policy applied locally.
+            StatFinder result with full transparency details and source verification.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -43,6 +43,11 @@ export function ResultsPage({
           <CopyButton text={result.argumentReadyCopy} label="Copy argument-ready" />
         </div>
       </div>
+
+      {/* Hero statistic display */}
+      <Card className="border-stone-200/90 py-8 sm:py-12">
+        <HeadlineStatDisplay result={result} />
+      </Card>
 
       <Card className="space-y-4 border-stone-200/90">
         <section>
@@ -92,15 +97,6 @@ export function ResultsPage({
             </div>
             <p className="text-sm text-stone-700">{result.method}</p>
           </div>
-        </section>
-
-        <section>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-500">
-            Answer
-          </h2>
-          <p className="mt-2 whitespace-pre-wrap text-base leading-relaxed text-stone-900">
-            {result.answer}
-          </p>
         </section>
 
         <section className="grid grid-cols-1 gap-3 sm:grid-cols-2">

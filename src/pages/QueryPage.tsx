@@ -2,6 +2,7 @@ import type { StatFilters } from '../types/stat'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { FilterPanel } from '../components/FilterPanel'
+import { LoadingAnimation } from '../components/LoadingAnimation'
 import { EXAMPLE_QUERY } from '../lib/mockData/sampleStatResult'
 
 interface QueryPageProps {
@@ -84,7 +85,13 @@ export function QueryPage({
             disabled={loading}
             onClick={() => (canQuery ? onSubmit() : onNeedSettings())}
           >
-            {loading ? 'Finding…' : canQuery ? 'Find stat' : 'Open Settings'}
+            {loading ? (
+              <LoadingAnimation baseText="Finding" />
+            ) : canQuery ? (
+              'Find stat'
+            ) : (
+              'Open Settings'
+            )}
           </Button>
         </div>
 

@@ -25,11 +25,16 @@ export class OpenAIProvider implements LLMProvider {
         body: JSON.stringify({
           model: this.model,
           messages: [{ role: 'user', content: 'Reply with OK.' }],
-          max_tokens: 16,
+          max_completion_tokens: 16,
           temperature: 0,
         }),
       })
-      if (!res.ok) return false
+      if (!res.ok) {
+        // Better error handling for debugging
+        const errText = await res.text().catch(() => '')
+        console.error(`OpenAI test connection failed (${res.status}):`, errText.slice(0, 200))
+        return false
+      }
       const body = (await res.json()) as unknown
       // Minimal shape guard so we don't treat HTML error pages as success.
       return (
@@ -38,7 +43,8 @@ export class OpenAIProvider implements LLMProvider {
         'choices' in body &&
         Array.isArray((body as { choices?: unknown }).choices)
       )
-    } catch {
+    } catch (error) {
+      console.error('OpenAI test connection error:', error)
       return false
     }
   }
@@ -55,7 +61,7 @@ export class OpenAIProvider implements LLMProvider {
         model: this.model,
         temperature: 0.2,
         response_format: { type: 'json_object' },
-        max_tokens: 4096,
+        max_completion_tokens: 4096,
         messages: [
           { role: 'system', content: MODEL_SYSTEM_PROMPT },
           { role: 'user', content: user },

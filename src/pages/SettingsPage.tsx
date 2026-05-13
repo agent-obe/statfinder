@@ -3,6 +3,8 @@ import type { LlmVendor } from '../types/stat'
 import {
   DEFAULT_ANTHROPIC_MODEL,
   DEFAULT_OPENAI_MODEL,
+  OPENAI_MODEL_OPTIONS,
+  ANTHROPIC_MODEL_OPTIONS,
   type PersistedSettings,
   writeSettings,
   persistApiKey,
@@ -27,6 +29,7 @@ export function SettingsPage({ settings, onSaved }: SettingsPageProps) {
   const [apiKeyDraft, setApiKeyDraft] = useState('')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
+  const [showCustomModel, setShowCustomModel] = useState(false)
 
   async function handleSave(runProbe: boolean) {
     setMsg(null)
@@ -80,6 +83,16 @@ export function SettingsPage({ settings, onSaved }: SettingsPageProps) {
   }
 
   const hint = readMaskedKeyHint()
+  const hasApiKey = hint.hasKey || apiKeyDraft.trim().length > 0
+  
+  // Get model options based on selected vendor
+  const modelOptions = vendor === 'anthropic' ? ANTHROPIC_MODEL_OPTIONS : OPENAI_MODEL_OPTIONS
+  
+  // Check if current model is in the curated list
+  const isModelInCuratedList = modelOptions.some(option => option.value === model)
+  
+  // Show custom input if model isn't in list or user explicitly chose custom
+  const shouldShowCustomInput = !isModelInCuratedList || showCustomModel
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-6 sm:px-6 sm:py-10">
@@ -129,6 +142,7 @@ export function SettingsPage({ settings, onSaved }: SettingsPageProps) {
                       ? DEFAULT_OPENAI_MODEL
                       : m,
                   )
+                  setShowCustomModel(false)
                 }}
               />
               OpenAI
@@ -145,6 +159,7 @@ export function SettingsPage({ settings, onSaved }: SettingsPageProps) {
                       ? DEFAULT_ANTHROPIC_MODEL
                       : m,
                   )
+                  setShowCustomModel(false)
                 }}
               />
               Anthropic
@@ -152,17 +167,59 @@ export function SettingsPage({ settings, onSaved }: SettingsPageProps) {
           </div>
         </fieldset>
 
-        <label className="block text-sm font-semibold text-stone-800">
-          Model name
-          <input
-            className="mt-2 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 focus:border-emerald-900/40 focus:outline-none focus:ring-2 focus:ring-emerald-900/20"
-            value={model}
-            onChange={(e) => setModel(e.target.value)}
-            spellCheck={false}
-          />
-        </label>
+        {hasApiKey ? (
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-stone-800">
+              Model selection
+              <select
+                className="mt-2 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 focus:border-emerald-900/40 focus:outline-none focus:ring-2 focus:ring-emerald-900/20"
+                value={shouldShowCustomInput ? 'custom' : model}
+                onChange={(e) => {
+                  if (e.target.value === 'custom') {
+                    setShowCustomModel(true)
+                    return
+                  }
+                  setShowCustomModel(false)
+                  setModel(e.target.value)
+                }}
+              >
+                {modelOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+                <option value="custom">
+                  {!isModelInCuratedList ? `Custom: ${model}` : 'Custom model...'}
+                </option>
+              </select>
+            </label>
+            
+            {shouldShowCustomInput && (
+              <label className="block text-sm font-semibold text-stone-800">
+                Custom model name
+                <input
+                  className="mt-2 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-900 focus:border-emerald-900/40 focus:outline-none focus:ring-2 focus:ring-emerald-900/20"
+                  value={model}
+                  onChange={(e) => setModel(e.target.value)}
+                  spellCheck={false}
+                  placeholder="Enter model name (e.g., gpt-4, claude-3-sonnet)"
+                />
+              </label>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-stone-800 text-stone-500">
+              Model selection
+            </label>
+            <div className="rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-500">
+              Enter your API key first to see available models
+            </div>
+          </div>
+        )}
+        
         <p className="text-xs text-stone-500">
-          Defaults: OpenAI `{DEFAULT_OPENAI_MODEL}`, Anthropic `{DEFAULT_ANTHROPIC_MODEL}` — editable forever.
+          Curated models are optimized for StatFinder. Custom models supported but may need fine-tuning.
         </p>
 
         <fieldset className="space-y-2">

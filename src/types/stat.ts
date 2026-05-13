@@ -31,6 +31,12 @@ export interface SourceHierarchyEntry {
 export interface StatResult {
   parsedFilters: Record<string, string>
   answer: string
+  /** The key number/percentage to emphasize visually */
+  headlineStat?: string
+  /** Label for the headline stat (e.g., "unemployment rate", "median income") */
+  headlineLabel?: string
+  /** Qualifier for the headline stat (e.g., "as of 2023", "among adults") */
+  headlineQualifier?: string
   confidence: Confidence
   resultType: string
   /** Human-readable citation line (agency, dataset, etc.) */

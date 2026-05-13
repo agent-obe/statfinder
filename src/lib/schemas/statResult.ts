@@ -10,6 +10,9 @@ export const RawSourceHierarchySchema = z.object({
 export const RawStatResultSchema = z.object({
   parsedFilters: z.record(z.string()).optional(),
   answer: z.string(),
+  headlineStat: z.string().optional(),
+  headlineLabel: z.string().optional(),
+  headlineQualifier: z.string().optional(),
   confidence: z.enum(['high', 'medium', 'low']),
   resultType: z.string(),
   source: z.string(),

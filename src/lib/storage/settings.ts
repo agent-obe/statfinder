@@ -9,6 +9,22 @@ import {
 export const DEFAULT_OPENAI_MODEL = 'gpt-4.1-mini'
 export const DEFAULT_ANTHROPIC_MODEL = 'claude-3-5-sonnet-latest'
 
+/** Curated model options per vendor for the dropdown */
+export const OPENAI_MODEL_OPTIONS = [
+  { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini (Fast, Affordable)' },
+  { value: 'gpt-4.1', label: 'GPT-4.1 (Most Capable)' },
+  { value: 'o3-mini', label: 'o3 Mini (Reasoning)' },
+  { value: 'o3', label: 'o3 (Advanced Reasoning)' },
+  { value: 'gpt-4o', label: 'GPT-4o (Multimodal)' },
+  { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+] as const
+
+export const ANTHROPIC_MODEL_OPTIONS = [
+  { value: 'claude-3-5-sonnet-latest', label: 'Claude 3.5 Sonnet (Latest)' },
+  { value: 'claude-3-5-haiku-latest', label: 'Claude 3.5 Haiku (Fast)' },
+  { value: 'claude-3-opus-latest', label: 'Claude 3 Opus (Most Capable)' },
+] as const
+
 export type KeyPersistence = 'local' | 'session'
 
 export interface PersistedSettings {
